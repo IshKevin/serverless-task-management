@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+coverage/
+.playwright/
+
+# Terraform
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.*
+infra/*.tfplan
+infra/crash.log
+infra/*.tfvars
+infra/lambda.zip
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Ansible
+*.retry
+config/inventory.ini  # contains IPs - recreate from terraform output
+
+# Jenkins
+jenkins_home/
+
+# Logs
+*.log
+npm-debug.log*

@@ -1,0 +1,32 @@
+pipeline {
+  agent any
+  tools { nodejs 'node20' }
+  stages {
+    stage('Install') {
+      steps {
+        dir('backend') {
+          sh 'npm ci'
+        }
+      }
+    }
+    stage('Test') {
+      steps {
+        dir('backend') {
+          sh 'npm test --coverage'
+        }
+      }
+    }
+    stage('Build') {
+      steps {
+        dir('backend') {
+          sh 'npm run build'
+        }
+      }
+    }
+    stage('Deploy') {
+      steps {
+        sh 'aws lambda update-function-code --function-name task-mgmt-api-dev --zip-file fileb://infra/lambda.zip'
+      }
+    }
+  }
+}

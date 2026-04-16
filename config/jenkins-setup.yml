@@ -1,0 +1,67 @@
+---
+- name: Install and configure Jenkins
+  hosts: jenkins
+  become: true
+  vars:
+    jenkins_plugins:
+      - git
+      - workflow-aggregator
+      - aws-credentials
+      - nodejs
+      - ansible
+      - terraform
+      - blueocean
+    node_version: "20.x"
+    terraform_version: "1.9.5"
+
+  tasks:
+    - name: Update apt cache
+      apt: update_cache=yes
+
+    - name: Install Java 17
+      apt: name=openjdk-17-jdk state=present
+
+    - name: Add Jenkins repo key
+      get_url:
+        url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+        dest: /usr/share/keyrings/jenkins-keyring.asc
+
+    - name: Add Jenkins repo
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/"
+        state: present
+
+    - name: Install Jenkins
+      apt: name=jenkins state=present update_cache=yes
+
+    - name: Start Jenkins
+      service: name=jenkins state=started enabled=yes
+
+    - name: Install Node.js
+      shell: |
+        curl -fsSL https://deb.nodesource.com/setup_{{ node_version }} | bash -
+        apt-get install -y nodejs
+      args: { creates: /usr/bin/node }
+
+    - name: Install pnpm
+      npm: name=pnpm global=yes
+
+    - name: Install Terraform
+      unarchive:
+        src: https://releases.hashicorp.com/terraform/{{ terraform_version }}/terraform_{{ terraform_version }}_linux_amd64.zip
+        dest: /usr/local/bin
+        remote_src: yes
+        mode: '0755'
+
+    - name: Install Ansible
+      pip: name=ansible state=present
+
+    - name: Wait for Jenkins to start
+      wait_for: port=8080 delay=10
+
+    - name: Get initial admin password
+      slurp: src=/var/lib/jenkins/secrets/initialAdminPassword
+      register: jenkins_password
+
+    - name: Show Jenkins password
+      debug: msg="Jenkins initial password: {{ jenkins_password['content'] | b64decode }}"
