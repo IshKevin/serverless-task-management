@@ -1,18 +1,21 @@
 resource "aws_cognito_user_pool" "main" {
   name = "task-mgmt-${var.env}"
 
+  username_attributes      = ["email"]
   auto_verified_attributes = ["email"]
 
   schema {
-    name = "email"
+    name                = "email"
     attribute_data_type = "String"
-    required = true
-    mutable = false
+    required            = true
+    mutable             = false
   }
 
   lambda_config {
-    pre_sign_up = aws_lambda_function.pre_signup.arn
+    pre_sign_up = var.pre_signup_lambda_arn
   }
+
+  tags = var.tags
 }
 
 resource "aws_cognito_user_pool_client" "web" {
@@ -29,12 +32,12 @@ resource "aws_cognito_user_pool_client" "web" {
   generate_secret = false
 }
 
-resource "aws_cognito_user_pool_group" "admin" {
+resource "aws_cognito_user_group" "admin" {
   name = "Admin"
   user_pool_id = aws_cognito_user_pool.main.id
 }
 
-resource "aws_cognito_user_pool_group" "member" {
+resource "aws_cognito_user_group" "member" {
   name = "Member"
   user_pool_id = aws_cognito_user_pool.main.id
 }
@@ -42,7 +45,7 @@ resource "aws_cognito_user_pool_group" "member" {
 resource "aws_lambda_permission" "cognito_pre_signup" {
   statement_id = "AllowCognitoInvoke"
   action = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.pre_signup.function_name
+  function_name = var.pre_signup_lambda_name
   principal = "cognito-idp.amazonaws.com"
   source_arn = aws_cognito_user_pool.main.arn
 }

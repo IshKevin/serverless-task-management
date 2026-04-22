@@ -4,25 +4,25 @@ resource "aws_dynamodb_table" "tasks" {
   hash_key = "PK"
   range_key = "SK"
 
-  attribute {
-    name = "PK"
-    type = "S"
-  }
+  attribute { 
+    name = "PK" 
+    type = "S" 
+    }
 
-  attribute {
+  attribute { 
     name = "SK"
-    type = "S"
-  }
+     type = "S"
+    }
 
-  attribute {
+  attribute { 
     name = "GSI1PK"
-    type = "S"
-  }
+    type = "S" 
+    }
 
   attribute {
-    name = "GSI1SK"
-    type = "S"
-  }
+     name = "GSI1SK" 
+     type = "S" 
+    }
 
   global_secondary_index {
     name = "GSI1"
@@ -33,4 +33,5 @@ resource "aws_dynamodb_table" "tasks" {
 
   stream_enabled = true
   stream_view_type = "NEW_AND_OLD_IMAGES"
+  tags = var.tags
 }

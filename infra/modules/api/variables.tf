@@ -1,0 +1,11 @@
+variable "env"                 { type = string }
+variable "aws_region"          { type = string }
+variable "tags"                { type = map(string) }
+variable "dynamodb_table_name" { type = string }
+variable "dynamodb_table_arn"  { type = string }
+variable "dynamodb_stream_arn" { type = string }
+variable "user_pool_id"        { type = string }
+variable "user_pool_client_id" { type = string }
+variable "user_pool_arn"       { type = string }
+variable "allowed_domains"     { type = list(string) }
+variable "ses_from_email"      { type = string }
