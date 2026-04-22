@@ -52,6 +52,7 @@ resource "aws_iam_role_policy" "lambda_access" {
   })
 }
 
+# Main API Lambda
 resource "aws_lambda_function" "api" {
   filename         = data.archive_file.lambda_zip.output_path
   function_name    = "task-mgmt-api-${var.env}"
@@ -71,22 +72,7 @@ resource "aws_lambda_function" "api" {
   tags = var.tags
 }
 
-resource "aws_lambda_function" "pre_signup" {
-  filename         = data.archive_file.lambda_zip.output_path
-  function_name    = "task-mgmt-pre-signup-${var.env}"
-  role             = aws_iam_role.lambda_exec.arn
-  handler          = "preSignup.handler"
-  runtime          = "nodejs20.x"
-  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
-
-  environment {
-    variables = {
-      ALLOWED_DOMAINS = join(",", var.allowed_domains)
-    }
-  }
-  tags = var.tags
-}
-
+# Notification Lambda (triggered by DynamoDB Streams)
 resource "aws_lambda_function" "notify" {
   filename         = data.archive_file.lambda_zip.output_path
   function_name    = "task-mgmt-notify-${var.env}"
@@ -106,23 +92,18 @@ resource "aws_lambda_function" "notify" {
 }
 
 resource "aws_lambda_event_source_mapping" "stream" {
-  event_source_arn  = var.dynamodb_stream_arn
-  function_name     = aws_lambda_function.notify.arn
-  starting_position = "LATEST"
-  batch_size        = 10
+  event_source_arn        = var.dynamodb_stream_arn
+  function_name           = aws_lambda_function.notify.arn
+  starting_position       = "LATEST"
+  batch_size              = 10
+  maximum_retry_attempts  = 3
+  bisect_batch_on_function_error = true
 }
 
 resource "aws_apigatewayv2_api" "http" {
   name          = "task-mgmt-api-${var.env}"
   protocol_type = "HTTP"
-
-  cors_configuration {
-    allow_origins = ["*"]
-    allow_methods = ["GET", "POST", "PATCH", "OPTIONS"]
-    allow_headers = ["Authorization", "Content-Type"]
-  }
-
-  tags = var.tags
+  tags          = var.tags
 }
 
 resource "aws_apigatewayv2_authorizer" "cognito" {
@@ -148,6 +129,15 @@ resource "aws_apigatewayv2_route" "proxy" {
   route_key          = "ANY /{proxy+}"
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+# OPTIONS requests never carry a JWT — allow them through so the browser CORS
+# preflight can reach the Lambda's built-in CORS handler and return 204.
+resource "aws_apigatewayv2_route" "options" {
+  api_id             = aws_apigatewayv2_api.http.id
+  route_key          = "OPTIONS /{proxy+}"
+  authorization_type = "NONE"
   target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 

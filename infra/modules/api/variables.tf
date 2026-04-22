@@ -7,5 +7,4 @@ variable "dynamodb_stream_arn" { type = string }
 variable "user_pool_id"        { type = string }
 variable "user_pool_client_id" { type = string }
 variable "user_pool_arn"       { type = string }
-variable "allowed_domains"     { type = list(string) }
 variable "ses_from_email"      { type = string }
