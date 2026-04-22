@@ -8,9 +8,9 @@ export const handler: PreSignUpTriggerHandler = async (event) => {
     if (!allowedDomainsEnv) throw new Error('ALLOWED_DOMAINS is not configured')
 
     const allowed = allowedDomainsEnv.split(',').map((d: string) => d.trim())
-    const domain = email.split('@')[1]
+    const domain = email.split('@')[1]?.toLowerCase().trim()
 
-    if (!domain || !allowed.includes(domain)) {
+    if (!domain || !allowed.some(d => d.toLowerCase() === domain)) {
         throw new Error('Email domain not allowed')
     }
 
