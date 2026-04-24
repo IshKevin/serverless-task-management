@@ -135,7 +135,34 @@ app.post('/tasks', async (c) => {
     }
 
     await ddb.send(new PutCommand({ TableName: TABLE_NAME, Item: item }))
-    // Assignment email is sent by the notify Lambda via DynamoDB Streams INSERT event
+
+    // Notify the assignee directly when a new task is created.
+    // Admins are notified separately via the DynamoDB stream (notify Lambda).
+    const color = STATUS_COLORS['OPEN']
+    const descHtml = task.description
+        ? `<p style="margin:4px 0 0;font-size:12px;color:#64748b">${esc(task.description)}</p>`
+        : ''
+
+    try {
+        await ses.send(new SendEmailCommand({
+            Source: SES_FROM,
+            Destination: { ToAddresses: [assigneeEmail] },
+            Message: {
+                Subject: { Data: `New Task Assigned: ${task.title}` },
+                Body: {
+                    Text: {
+                        Data: `You have been assigned a new task: "${task.title}".\n\nLog in to TaskFlow to view and manage this task.`,
+                    },
+                    Html: {
+                        Data: `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;background:#f8fafc;padding:24px"><div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)"><div style="background:#6366f1;padding:20px 24px"><h1 style="color:#fff;margin:0;font-size:18px;font-weight:600">New Task Assigned</h1></div><div style="padding:24px"><p style="color:#475569;margin:0 0 16px">You have been assigned a new task in TaskFlow:</p><div style="background:#f1f5f9;border-left:4px solid #6366f1;border-radius:6px;padding:16px;margin-bottom:16px"><h2 style="margin:0 0 6px;font-size:15px;color:#0f172a">${esc(task.title)}</h2>${descHtml}</div><p style="color:#94a3b8;font-size:12px;margin:0">Log in to TaskFlow to view and update your task status.</p></div></div></body></html>`,
+                    },
+                },
+            },
+        }))
+        logger.info('Assignee notified of new task', { taskId, assigneeEmail })
+    } catch (err) {
+        logger.warn('Assignee assignment email failed', { taskId, assigneeEmail, err })
+    }
 
     logger.info('Task created', { taskId, assigneeEmail })
     return c.json(item, 201)

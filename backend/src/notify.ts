@@ -93,11 +93,10 @@ export const handler: DynamoDBStreamHandler = async (event) => {
             if (record.eventName === 'INSERT') {
                 if (!assigneeEmail) continue
 
-                const toAddresses = [assigneeEmail]
-                // Notify admins too (Bcc), excluding the assignee if they are also admin
-                const bccSet = new Set(adminEmails)
-                bccSet.delete(assigneeEmail)
-                const bccAddresses = [...bccSet]
+                // Notify admins that a new task has been created.
+                // The assignee is notified directly by the API handler.
+                const adminOnly = adminEmails.filter(e => e !== assigneeEmail)
+                if (adminOnly.length === 0) continue
 
                 const descHtml = description
                     ? `<p style="margin:0;font-size:13px;color:#64748b">${esc(description)}</p>`
@@ -105,19 +104,18 @@ export const handler: DynamoDBStreamHandler = async (event) => {
 
                 try {
                     await sendEmail(
-                        toAddresses,
-                        bccAddresses,
-                        `New Task Assigned: ${title}`,
-                        `You have been assigned a new task.\n\nTitle: ${title}${description ? `\nDescription: ${description}` : ''}\n\nLog in to TaskFlow to view and update your task.`,
-                        `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;background:#f8fafc;padding:24px"><div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)"><div style="background:#6366f1;padding:20px 24px"><h1 style="color:#fff;margin:0;font-size:18px;font-weight:600">New Task Assigned</h1></div><div style="padding:24px"><p style="color:#475569;margin:0 0 16px">You have been assigned a new task in TaskFlow:</p><div style="background:#f1f5f9;border-left:4px solid #6366f1;border-radius:6px;padding:16px;margin-bottom:16px"><h2 style="margin:0 0 6px;font-size:15px;color:#0f172a">${esc(title)}</h2>${descHtml}</div><p style="color:#64748b;font-size:13px;margin:0 0 8px">Assigned to: <strong>${esc(assigneeEmail)}</strong></p><p style="color:#94a3b8;font-size:12px;margin:0">Log in to TaskFlow to view and update your task status.</p></div></div></body></html>`,
+                        [adminOnly[0]],
+                        adminOnly.slice(1),
+                        `[Admin] New Task Created: ${title}`,
+                        `A new task "${title}" has been created and assigned to ${assigneeEmail}.${description ? `\n\n${description}` : ''}\n\nLog in to TaskFlow to view the task.`,
+                        `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;background:#f8fafc;padding:24px"><div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)"><div style="background:#0f172a;padding:20px 24px"><h1 style="color:#fff;margin:0;font-size:18px;font-weight:600">New Task Created</h1></div><div style="padding:24px"><p style="color:#475569;margin:0 0 16px">A new task has been assigned in TaskFlow:</p><div style="background:#f1f5f9;border-left:4px solid #6366f1;border-radius:6px;padding:16px;margin-bottom:16px"><h2 style="margin:0 0 6px;font-size:15px;color:#0f172a">${esc(title)}</h2>${descHtml}</div><p style="color:#64748b;font-size:13px;margin:0 0 8px">Assigned to: <strong>${esc(assigneeEmail)}</strong></p><p style="color:#94a3b8;font-size:12px;margin:0">Log in to TaskFlow to view and manage this task.</p></div></div></body></html>`,
                     )
-                    logger.info('Assignment notification sent via stream', { title, assigneeEmail })
+                    logger.info('Admin assignment notification sent via stream', { title, assigneeEmail, adminCount: adminOnly.length })
                 } catch (err) {
-                    logger.warn('Assignment email failed (SES)', { title, assigneeEmail, err })
+                    logger.warn('Admin assignment email failed (SES)', { title, assigneeEmail, err })
                 }
                 continue
             }
-
             // ── Status changed — notify admins (assignee is notified directly by the API handler) ──
             if (record.eventName === 'MODIFY') {
                 if (!record.dynamodb.OldImage) continue

@@ -49,12 +49,12 @@ resource "aws_ses_email_identity" "sender" {
   email = var.ses_from_email
 }
 
-# React frontend hosted on AWS Amplify (manual zip deployment via null_resource)
-# module "amplify" {
-#   source               = "./modules/amplify"
-#   env                  = var.env
-#   tags                 = local.tags
-#   api_endpoint         = module.api.api_endpoint
-#   user_pool_id         = module.cognito.user_pool_id
-#   user_pool_client_id  = module.cognito.user_pool_client_id
-# }
+#React frontend hosted on AWS Amplify (manual zip deployment via null_resource)
+module "amplify" {
+  source               = "./modules/amplify"
+  env                  = var.env
+  tags                 = local.tags
+  api_endpoint         = module.api.api_endpoint
+  user_pool_id         = module.cognito.user_pool_id
+  user_pool_client_id  = module.cognito.user_pool_client_id
+}
